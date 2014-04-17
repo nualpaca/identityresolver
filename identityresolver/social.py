@@ -6,19 +6,31 @@ class ResolvedPerson(object):
 		for key in SocialProfileResolver.FIELDS:
 			argval = kwargs[key] if (key in kwargs) else None
 			setattr(self,key,argval)
-		self.parse_name()
+
+		if self.full_name and not (self.first_name or self.last_name):
+			self.first_name, self.last_name = ResolvedPerson.parse_name()
 	
 	def from_json(self,json):
 		"""Fill the fields of this person from a JSON."""
 		for key in json:
 			setattr(self,key,json[key])
-		self.parse_name()
-	
-	def parse_name(self):
+
 		if self.full_name and not (self.first_name or self.last_name):
-			"""Do Something"""
+			self.first_name, self.last_name = ResolvedPerson.parse_name()
+	
+	def parse_name(full_name):
+		"""Parse a name string into first and last name."""
+		# Gellner, Moritz J. | Gellner, Moritz Julius | Gellner, Moritz
+		if ',' in full_name:
+			chunks = full_name.split(',')
+			return (chunks[1].lstrip(' ').rstrip(' '), 
+					chunks[0].lstrip(' ').rstrip(' '))
+		# Moritz Gellner | Moritz J. Gellner | Moritz Julius Gellner
+		elif ' ' in full_name:
+			chunks = full_name.split(' ')
+			return (chunks[0:-1],chunks[-1])
 		else:
-			return
+			return None,None
 
 	def __repr__(self):
 		s = "ResolvedPerson<%i>(" % self.id
@@ -80,7 +92,6 @@ class SocialProfileResolver(object):
 				data.append(person.load_from_json(record))
 
 		resolved_data = self.resolve(data)
-
 
 
 	def resolve(self,data):
