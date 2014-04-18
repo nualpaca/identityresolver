@@ -1,4 +1,4 @@
-import csv, urllib, requests
+import csv, urllib, requests, json
 from bs4 import BeautifulSoup
 
 class ResolvedPerson(object):
@@ -114,12 +114,15 @@ class SocialProfileResolver(object):
                 yield person
 
     def _get_username(self,network,url):
+        url = "http://" + str(url)
         if network == "linkedin":
             # just return URL, since that's the identifier for linkedin
             return url
         if network == "facebook":
-            resp = requests.get(url)
-            return resp.url.split('/')[-1]
+            uid = url.split('/')[-1]
+            graph_url = "https://graph.facebook.com/%s?fields=username" % uid
+            resp = requests.get(graph_url,allow_redirects=True)
+            return json.loads(resp.text)["username"]
         if network == "twitter":
             return url.split('/')[-1]
 
