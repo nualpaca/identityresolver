@@ -1,4 +1,4 @@
-import unittest, os
+import unittest
 from ...social import SocialProfileResolver,ResolvedPerson
 
 # from mock import patch 
@@ -14,17 +14,9 @@ class TestTwitterScraper(unittest.TestCase):
 						 ResolvedPerson(2,full_name = 'Carson H. Potter', city='Chicago',state='IL', age = '23'),
 						 ResolvedPerson(3,full_name = 'Daniel Thirman', city='Wilmette',state='IL', age = '21')]
 
-	def test_from_csv_1(self):
-
-		resolved_people = self.resolver._load_from_csv(os.getcwd() + '/identityresolver/tests/unit/test_identities_1.csv', 
-													   city=1,state=2,age=3)
-
-		print resolved_people
-
-		self.assertEqual(self.test_set,resolved_people)
-
 	def test_resolve(self):
-		self.resolver.resolve(self.test_set)
+		for person in self.resolver.resolve(self.test_set):
+			print person
 		self.assertEqual(True,True)
 
 if __name__ == "__main__":

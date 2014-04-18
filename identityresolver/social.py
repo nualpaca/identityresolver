@@ -1,4 +1,5 @@
-import csv
+import csv, urllib, requests
+from bs4 import BeautifulSoup
 
 class ResolvedPerson(object):
     def __init__(self,id,**kwargs):
@@ -46,9 +47,9 @@ class ResolvedPerson(object):
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
-            return self.__dict__ == other.__dict__
-        else:
-            return False
+            return (self.first_name == other.first_name and self.last_name == other.last_name and
+                   self.age == other.age and self.city == other.city and self.state == other.state)
+        return False
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -65,6 +66,7 @@ class SocialProfileResolver(object):
     FIELDS =    { 'full_name'           : 0, 
                   'first_name'          : None,
                   'last_name'           : None,
+                  'city'                : None,
                   'state'               : None, 
                   'age'                 : None, 
                   'linkedin_username'   : None,
@@ -80,6 +82,7 @@ class SocialProfileResolver(object):
             - full_name: 1
             - first_name: None
             - last_name: None
+            - city: None
             - state: None
             - age: None
             - linkedin_username: None
@@ -102,14 +105,44 @@ class SocialProfileResolver(object):
                 data.append(person.from_json(record))
         return data
 
-        def resolve_from_csv(self,input_path,output_path=None,**kwargs):
-            data = self._load_from_csv(input_path,output_path,kwargs)
-            if output_path:
-                raise NotImplementedError("Should write to a file!")
-            else:
-                for person in self.resolve(data):
-                    yield person
+    def resolve_from_csv(self,input_path,output_path=None,**kwargs):
+        data = self._load_from_csv(input_path,output_path,kwargs)
+        if output_path:
+            raise NotImplementedError("Should write to a file!")
+        else:
+            for person in self.resolve(data):
+                yield person
+
+    def _get_username(self,network,url):
+        if network == "linkedin":
+            # just return URL, since that's the identifier for linkedin
+            return url
+        if network == "facebook":
+            resp = requests.get(url)
+            return resp.url.split('/')[-1]
+        if network == "twitter":
+            return url.split('/')[-1]
 
     def resolve(self,data):
-        for person in data:
-            yield person
+        for p in data:
+            pipl_url = "https://pipl.com/search/?q=%s+%s" % (p.first_name, p.last_name)
+            if p.city:
+                pipl_url += "&l=%s" % p.city
+            if p.state:
+                if p.city:
+                    pipl_url += urllib.quote(",%s,US" % p.state)
+                else:
+                    pipl_url += "&" + urllib.quote("l=%s,US" % p.state)
+            response = requests.get(pipl_url)
+            soup = BeautifulSoup(response.text)
+            for elem in soup.findAll("span","name"):
+                #print elem.text
+                if (p.first_name.lower().split(' ')[0] in elem.text.lower()) and \
+                (p.last_name.lower() in elem.text.lower()):
+                    link = elem.parent.find("div","url")
+                    if link:
+                        for sm_name in ["facebook","linkedin","twitter"]:
+                            if sm_name in link.text:
+                                setattr(p,sm_name + "_username",self._get_username(sm_name,link.text.lstrip('\n\t ').rstrip('\n\t ')))
+            yield p
+                
