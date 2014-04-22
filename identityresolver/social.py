@@ -128,6 +128,7 @@ class SocialProfileResolver(object):
 
     def resolve(self,data):
         for p in data:
+            found = {"facebook":False,"linkedin":False,"twitter":False}
             pipl_url = "https://pipl.com/search/?q=%s+%s" % (p.first_name, p.last_name)
             if p.city:
                 pipl_url += "&l=%s" % p.city
@@ -136,6 +137,7 @@ class SocialProfileResolver(object):
                     pipl_url += urllib.quote(",%s,US" % p.state)
                 else:
                     pipl_url += "&" + urllib.quote("l=%s,US" % p.state)
+            print pipl_url
             response = requests.get(pipl_url)
             soup = BeautifulSoup(response.text)
             for elem in soup.findAll("span","name"):
@@ -145,7 +147,8 @@ class SocialProfileResolver(object):
                     link = elem.parent.find("div","url")
                     if link:
                         for sm_name in ["facebook","linkedin","twitter"]:
-                            if sm_name in link.text:
+                            if sm_name in link.text and not found[sm_name]:
+                                found[sm_name] = True
                                 setattr(p,sm_name + "_username",self._get_username(sm_name,link.text.lstrip('\n\t ').rstrip('\n\t ')))
             yield p
                 
